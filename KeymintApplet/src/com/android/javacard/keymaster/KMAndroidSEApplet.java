@@ -45,6 +45,11 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
   private static final byte INS_LOCK_PROVISIONING_CMD = INS_KEYMINT_PROVIDER_APDU_START + 3;
   private static final byte INS_GET_PROVISION_STATUS_CMD = INS_KEYMINT_PROVIDER_APDU_START + 4;
   private static final byte INS_SET_BOOT_PARAMS_CMD = INS_KEYMINT_PROVIDER_APDU_START + 5;
+  private static final byte INS_PROVISION_DEVICE_UNIQUE_KEY_CMD =
+	      INS_KEYMINT_PROVIDER_APDU_START + 6;
+  private static final byte INS_PROVISION_ADDITIONAL_CERT_CHAIN_CMD =
+	      INS_KEYMINT_PROVIDER_APDU_START + 7;
+
   private static final byte INS_KEYMINT_PROVIDER_APDU_END = 0x1F;
   public static final byte BOOT_KEY_MAX_SIZE = 32;
   public static final byte BOOT_HASH_MAX_SIZE = 32;
@@ -64,14 +69,10 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
   private static byte keymasterState = ILLEGAL_STATE;
   private static byte provisionStatus = NOT_PROVISIONED;
   
-
-   
-  private boolean locked;
   KMAndroidSEApplet() {
-    super(new KMAndroidSEProvider());
-    locked = false;
-  }
-
+	    super(new KMAndroidSEProvider());
+ }
+  
   /**
    * Installs this applet.
    *
@@ -98,7 +99,7 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
 	      super.powerReset();
 	    }
 	    
-	    if (locked) {
+	    if (((KMAndroidSEProvider) seProvider).isProvisionLocked()) {
 	      switch (apduIns) {
 	        case INS_SET_BOOT_PARAMS_CMD:
 	          processSetBootParamsCmd(apdu);
@@ -136,9 +137,16 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
 			
 	        processSetBootParamsCmd(apdu);
 	        provisionStatus |= PROVISION_STATUS_BOOT_PARAM;
-	
-	        sendError(apdu, KMError.OK);
 	        break;
+	        
+	      case INS_PROVISION_DEVICE_UNIQUE_KEY_CMD:
+	          processProvisionDeviceUniqueKey(apdu);
+	          break;
+	        
+	      case INS_PROVISION_ADDITIONAL_CERT_CHAIN_CMD:
+	          processProvisionAdditionalCertChain(apdu);
+	          break; 
+	        
 	        
 	      default:
 	        super.process(apdu);
@@ -151,6 +159,76 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
 		repository.clean();
 	}
   }
+  
+  private static void processProvisionDeviceUniqueKey(APDU apdu) {
+	    // Re-purpose the apdu buffer as scratch pad.
+	    byte[] scratchPad = apdu.getBuffer();
+	    short arr = KMArray.instance((short) 1);
+	    short coseKeyExp = KMCoseKey.exp();
+	    KMArray.cast(arr).add((short) 0, coseKeyExp); //[ CoseKey ]
+	    arr = receiveIncoming(apdu, arr);
+	    // Get cose key.
+	    short coseKey = KMArray.cast(arr).get((short) 0);
+	    short pubKeyLen = KMCoseKey.cast(coseKey).getEcdsa256PublicKey(scratchPad, (short) 0);
+	    short privKeyLen = KMCoseKey.cast(coseKey).getPrivateKey(scratchPad, pubKeyLen);
+	    //Store the Device unique Key.
+	    seProvider.createDeviceUniqueKey(false, scratchPad, (short) 0, pubKeyLen, scratchPad,
+	        pubKeyLen, privKeyLen);
+	    // Newly added code 30/07/2021
+	    short bcc = ((KMAndroidSEProvider) seProvider).generateBcc(false, scratchPad);
+	    short len = KMKeymasterApplet.encodeToApduBuffer(bcc, scratchPad, (short) 0,
+	        MAX_COSE_BUF_SIZE);
+	    ((KMAndroidSEProvider) seProvider).persistBootCertificateChain(scratchPad, (short) 0, len);
+	    sendError(apdu, KMError.OK);
+	  }
+
+  private static void processProvisionAdditionalCertChain(APDU apdu) {
+	    // Prepare the expression to decode
+	    short headers = KMCoseHeaders.exp();
+	    short arrInst = KMArray.instance((short) 4);
+	    KMArray.cast(arrInst).add((short) 0, KMByteBlob.exp());
+	    KMArray.cast(arrInst).add((short) 1, headers);
+	    KMArray.cast(arrInst).add((short) 2, KMByteBlob.exp());
+	    KMArray.cast(arrInst).add((short) 3, KMByteBlob.exp());
+	    short coseSignArr = KMArray.exp(arrInst);
+	    short map =  KMMap.instance((short) 1);
+	    KMMap.cast(map).add((short) 0, KMTextString.exp(), coseSignArr);
+	    // TODO duplicate code.
+	    // receive incoming data and decode it.
+	    byte[] srcBuffer = apdu.getBuffer();
+	    short recvLen = apdu.setIncomingAndReceive();
+	    short srcOffset = apdu.getOffsetCdata();
+	    short bufferLength = apdu.getIncomingLength();
+	    short bufferStartOffset = repository.allocReclaimableMemory(bufferLength);
+	    short index = bufferStartOffset;
+	    byte[] buffer = repository.getHeap();
+	    while (recvLen > 0 && ((short) (index - bufferStartOffset) < bufferLength)) {
+	      Util.arrayCopyNonAtomic(srcBuffer, srcOffset, buffer, index, recvLen);
+	      index += recvLen;
+	      recvLen = apdu.receiveBytes(srcOffset);
+	    }
+	    // decode
+	    map = decoder.decode(map, buffer, bufferStartOffset, bufferLength);
+	    arrInst = KMMap.cast(map).getKeyValue((short) 0);
+	    // Validate Additional certificate chain.
+	    short leafCoseKey =
+	        validateCertChain(false, KMCose.COSE_ALG_ES256, KMCose.COSE_ALG_ES256, arrInst,
+	            srcBuffer, null);
+	    // Compare the DK_Pub.
+	    short pubKeyLen = KMCoseKey.cast(leafCoseKey).getEcdsa256PublicKey(srcBuffer, (short) 0);
+	    KMDeviceUniqueKey uniqueKey = seProvider.getDeviceUniqueKey(false);
+	    if (uniqueKey == null)
+	      KMException.throwIt(KMError.STATUS_FAILED);
+	    short uniqueKeyLen = uniqueKey.getPublicKey(srcBuffer, pubKeyLen);
+	    if ((pubKeyLen != uniqueKeyLen) ||
+	        (0 != Util.arrayCompare(srcBuffer, (short) 0, srcBuffer, pubKeyLen, pubKeyLen))) {
+	      KMException.throwIt(KMError.STATUS_FAILED);
+	    }
+	    seProvider.persistAdditionalCertChain(buffer, bufferStartOffset, bufferLength);
+	    //reclaim memory
+	    repository.reclaimMemory(bufferLength);
+	    sendError(apdu, KMError.OK);
+}
   
   private void processProvisionAttestIdsCmd(APDU apdu) {
 	  
@@ -301,17 +379,12 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
     ((KMAndroidSEProvider)seProvider).setDeviceLocked(enumVal == KMType.DEVICE_LOCKED_TRUE);
  
     super.reboot();
+    sendError(apdu, KMError.OK);
   }
   
   private void processLockProvisioningCmd(APDU apdu) {
-	  if (isProvisioningComplete()) {
-         // provisionStatus |= KMKeymasterApplet.PROVISION_STATUS_PROVISIONING_LOCKED;
-          //keymasterState = KMKeymasterApplet.ACTIVE_STATE;
-		  locked = true;
-		  sendError(apdu, KMError.OK);
-        } else {
-          ISOException.throwIt(ISO7816.SW_COMMAND_NOT_ALLOWED);
-        }
+	  ((KMAndroidSEProvider)seProvider).setProvisionLocked(true);
+	  sendError(apdu, KMError.OK);
   }
   
   @Override

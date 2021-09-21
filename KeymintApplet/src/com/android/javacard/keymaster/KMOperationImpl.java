@@ -17,6 +17,7 @@ package com.android.javacard.keymaster;
 
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
+import javacard.security.KeyAgreement;
 import javacard.security.Signature;
 import javacardx.crypto.AEADCipher;
 import javacardx.crypto.Cipher;
@@ -88,6 +89,10 @@ public class KMOperationImpl implements KMOperation {
     operationInst[0] = signer;
   }
 
+  public void setKeyAgreement(KeyAgreement keyAgreemen) {
+	    operationInst[0] = keyAgreemen;
+  }
+  
   private void resetCipher() {
     operationInst[0] = null;
     parameters[MAC_LENGTH_OFFSET] = 0;
@@ -193,7 +198,11 @@ public class KMOperationImpl implements KMOperation {
             KMException.throwIt(KMError.VERIFICATION_FAILED);
           }
         }
+      }else if (operationInst[0] != null) {
+    	     return ((KeyAgreement)operationInst[0]).generateSecret(inputDataBuf, inputDataStart, inputDataLen,
+    	             outputDataBuf, outputDataStart);
       }
+      
     } finally {
       KMAndroidSEProvider.getInstance().clean();
       KMAndroidSEProvider.getInstance().releaseCipherInstance(cipher);
