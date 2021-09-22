@@ -19,6 +19,37 @@ import org.globalplatform.upgrade.Element;
 import org.globalplatform.upgrade.OnUpgradeListener;
 import org.globalplatform.upgrade.UpgradeManager;
 
+import com.android.javacard.seprovider.KMAndroidSEProvider;
+import com.android.javacard.seprovider.KMArray;
+import com.android.javacard.seprovider.KMAttestationCertImpl;
+import com.android.javacard.seprovider.KMAttestationKey;
+import com.android.javacard.seprovider.KMBignumTag;
+import com.android.javacard.seprovider.KMBoolTag;
+import com.android.javacard.seprovider.KMByteBlob;
+import com.android.javacard.seprovider.KMByteTag;
+import com.android.javacard.seprovider.KMCose;
+import com.android.javacard.seprovider.KMCoseHeaders;
+import com.android.javacard.seprovider.KMCoseKey;
+import com.android.javacard.seprovider.KMCosePairByteBlobTag;
+import com.android.javacard.seprovider.KMCosePairCoseKeyTag;
+import com.android.javacard.seprovider.KMCosePairTextStringTag;
+import com.android.javacard.seprovider.KMDeviceUniqueKey;
+import com.android.javacard.seprovider.KMEnum;
+import com.android.javacard.seprovider.KMEnumArrayTag;
+import com.android.javacard.seprovider.KMEnumTag;
+import com.android.javacard.seprovider.KMError;
+import com.android.javacard.seprovider.KMException;
+import com.android.javacard.seprovider.KMInteger;
+import com.android.javacard.seprovider.KMIntegerArrayTag;
+import com.android.javacard.seprovider.KMIntegerTag;
+import com.android.javacard.seprovider.KMKeyParameters;
+import com.android.javacard.seprovider.KMMap;
+import com.android.javacard.seprovider.KMNInteger;
+import com.android.javacard.seprovider.KMRepository;
+import com.android.javacard.seprovider.KMTextString;
+import com.android.javacard.seprovider.KMType;
+import com.android.javacard.seprovider.KMUtils;
+
 import javacard.framework.APDU;
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
@@ -70,8 +101,27 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
   private static byte provisionStatus = NOT_PROVISIONED;
   
   KMAndroidSEApplet() {
-	    super(new KMAndroidSEProvider());
+	  super(new KMAndroidSEProvider());
+
  }
+  
+  static void initLibStatics() {
+	  KMAndroidSEProvider.initStatics();
+	  KMAttestationCertImpl.initStatics();
+	  KMBignumTag.initStatics();
+	  KMBoolTag.initStatics();
+	  KMByteTag.initStatics();
+	  KMCose.initStatics();
+	  KMCosePairCoseKeyTag.initStatics();
+	  KMCosePairTextStringTag.initStatics();
+	  KMEnum.initStatics();
+	  KMEnumArrayTag.initStatics();
+	  KMEnumTag.initStatics();
+	  KMIntegerArrayTag.initStatics();
+	  KMIntegerTag.initStatics();
+	  KMRepository.initStatics();
+	  KMUtils.initStatics();
+  }
   
   /**
    * Installs this applet.
@@ -82,6 +132,7 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
    */
   public static void install(byte[] bArray, short bOffset, byte bLength) {
     //new KMAndroidSEApplet().register(bArray, (short) (bOffset + 1), bArray[bOffset]);
+	  initLibStatics();
 	  new KMAndroidSEApplet().register();
   }
 
@@ -175,7 +226,7 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
 	    seProvider.createDeviceUniqueKey(false, scratchPad, (short) 0, pubKeyLen, scratchPad,
 	        pubKeyLen, privKeyLen);
 	    // Newly added code 30/07/2021
-	    short bcc = ((KMAndroidSEProvider) seProvider).generateBcc(false, scratchPad);
+	    short bcc = generateBcc(false, scratchPad);
 	    short len = KMKeymasterApplet.encodeToApduBuffer(bcc, scratchPad, (short) 0,
 	        MAX_COSE_BUF_SIZE);
 	    ((KMAndroidSEProvider) seProvider).persistBootCertificateChain(scratchPad, (short) 0, len);
@@ -463,6 +514,98 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
 	    } else {
 	      return false;
 	    }
+  }
+  
+
+  public static short generateBcc(boolean testMode, byte[] scratchPad) {
+    if (!testMode && ((KMAndroidSEProvider)seProvider).isProvisionLocked()) {
+      KMException.throwIt(KMError.STATUS_FAILED);
+    }
+    KMDeviceUniqueKey deviceUniqueKey = seProvider.getDeviceUniqueKey(testMode);
+    short temp = deviceUniqueKey.getPublicKey(scratchPad, (short) 0);
+    short coseKey =
+        KMCose.constructCoseKey(
+            KMInteger.uint_8(KMCose.COSE_KEY_TYPE_EC2),
+            KMType.INVALID_VALUE,
+            KMNInteger.uint_8(KMCose.COSE_ALG_ES256),
+            KMInteger.uint_8(KMCose.COSE_KEY_OP_VERIFY),
+            KMInteger.uint_8(KMCose.COSE_ECCURVE_256),
+            scratchPad,
+            (short) 0,
+            temp,
+            KMType.INVALID_VALUE,
+            false
+        );
+   	
+  	temp = KMKeymasterApplet.encodeToApduBuffer(coseKey, scratchPad, (short) 0,
+  	KMKeymasterApplet.MAX_COSE_BUF_SIZE);
+  	 
+    // Construct payload.
+    short payload =
+        KMCose.constructCoseCertPayload(
+            KMCosePairTextStringTag.instance(KMInteger.uint_8(KMCose.ISSUER),
+                KMTextString.instance(KMCose.TEST_ISSUER_NAME, (short) 0,
+                    (short) KMCose.TEST_ISSUER_NAME.length)),
+            KMCosePairTextStringTag.instance(KMInteger.uint_8(KMCose.SUBJECT),
+                KMTextString.instance(KMCose.TEST_SUBJECT_NAME, (short) 0,
+                    (short) KMCose.TEST_SUBJECT_NAME.length)),
+            KMCosePairByteBlobTag.instance(KMNInteger.uint_32(KMCose.SUBJECT_PUBLIC_KEY, (short) 0),
+                KMByteBlob.instance(scratchPad, (short) 0, temp)),
+            KMCosePairByteBlobTag.instance(KMNInteger.uint_32(KMCose.KEY_USAGE, (short) 0),
+                KMByteBlob.instance(KMCose.KEY_USAGE_SIGN, (short) 0,
+                    (short) KMCose.KEY_USAGE_SIGN.length))
+        );
+    // temp temporarily holds the length of encoded cert payload.
+  	
+  	 temp = KMKeymasterApplet.encodeToApduBuffer(payload, scratchPad, (short) 0,
+  	 KMKeymasterApplet.MAX_COSE_BUF_SIZE);
+  	
+    payload = KMByteBlob.instance(scratchPad, (short) 0, temp);
+
+    // protected header
+    short protectedHeader =
+        KMCose.constructHeaders(KMNInteger.uint_8(KMCose.COSE_ALG_ES256), KMType.INVALID_VALUE,
+            KMType.INVALID_VALUE, KMType.INVALID_VALUE);
+    // temp temporarily holds the length of encoded headers.
+
+  	 temp = KMKeymasterApplet.encodeToApduBuffer(protectedHeader, scratchPad,
+  	 (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
+   protectedHeader = KMByteBlob.instance(scratchPad, (short) 0, temp);
+
+    //unprotected headers.
+    short arr = KMArray.instance((short) 0);
+    short unprotectedHeader = KMCoseHeaders.instance(arr);
+
+    // construct cose sign structure.
+    short coseSignStructure =
+        KMCose.constructCoseSignStructure(protectedHeader, KMByteBlob.instance((short) 0), payload);
+    // temp temporarily holds the length of encoded sign structure.
+    // Encode cose Sign_Structure.
+  	
+  	temp = KMKeymasterApplet.encodeToApduBuffer(coseSignStructure, scratchPad,
+  	(short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
+  	
+    // do sign
+    short len =
+    		seProvider.ecSign256(
+            deviceUniqueKey,
+            scratchPad,
+            (short) 0,
+            temp,
+            scratchPad,
+            temp
+        );
+    coseSignStructure = KMByteBlob.instance(scratchPad, temp, len);
+
+    // construct cose_sign1
+    short coseSign1 =
+        KMCose.constructCoseSign1(protectedHeader, unprotectedHeader, payload, coseSignStructure);
+
+    // [Cose_Key, Cose_Sign1]
+    short bcc = KMArray.instance((short) 2);
+    KMArray.cast(bcc).add((short) 0, coseKey);
+    KMArray.cast(bcc).add((short) 1, coseSign1);
+    return bcc;
   }
 }
 

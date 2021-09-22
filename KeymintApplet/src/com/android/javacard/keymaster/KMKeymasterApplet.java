@@ -16,6 +16,34 @@
 
 package com.android.javacard.keymaster;
 
+import com.android.javacard.seprovider.KMArray;
+import com.android.javacard.seprovider.KMAttestationCert;
+import com.android.javacard.seprovider.KMBignumTag;
+import com.android.javacard.seprovider.KMByteBlob;
+import com.android.javacard.seprovider.KMByteTag;
+import com.android.javacard.seprovider.KMCose;
+import com.android.javacard.seprovider.KMCoseHeaders;
+import com.android.javacard.seprovider.KMCoseKey;
+import com.android.javacard.seprovider.KMDecoder;
+import com.android.javacard.seprovider.KMEncoder;
+import com.android.javacard.seprovider.KMEnum;
+import com.android.javacard.seprovider.KMEnumArrayTag;
+import com.android.javacard.seprovider.KMEnumTag;
+import com.android.javacard.seprovider.KMError;
+import com.android.javacard.seprovider.KMException;
+import com.android.javacard.seprovider.KMHardwareAuthToken;
+import com.android.javacard.seprovider.KMHmacSharingParameters;
+import com.android.javacard.seprovider.KMInteger;
+import com.android.javacard.seprovider.KMIntegerArrayTag;
+import com.android.javacard.seprovider.KMIntegerTag;
+import com.android.javacard.seprovider.KMKeyCharacteristics;
+import com.android.javacard.seprovider.KMKeyParameters;
+import com.android.javacard.seprovider.KMRepository;
+import com.android.javacard.seprovider.KMSEProvider;
+import com.android.javacard.seprovider.KMTag;
+import com.android.javacard.seprovider.KMType;
+import com.android.javacard.seprovider.KMVerificationToken;
+
 import javacard.framework.APDU;
 import javacard.framework.Applet;
 import javacard.framework.AppletEvent;
@@ -195,7 +223,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   private static final short HMAC_SHARED_PARAM_MAX_SIZE = 64;
   protected static final short MAX_CERT_SIZE = 2048;
 
- // protected static RemotelyProvisionedComponentDevice rkp;
+  protected static RemotelyProvisionedComponentDevice rkp;
   protected static KMEncoder encoder;
   protected static KMDecoder decoder;
   protected static KMRepository repository;
@@ -234,7 +262,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     // initialize default values
     initHmacNonceAndSeed();
     initSystemBootParams((short)0,(short)0,(short)0,(short)0);
-   // rkp = new RemotelyProvisionedComponentDevice(encoder, decoder, repository, seProvider);
+    rkp = new RemotelyProvisionedComponentDevice(encoder, decoder, repository, seProvider);
   }
 
   protected void initHmacNonceAndSeed(){
@@ -476,7 +504,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
         case INS_FINISH_SEND_DATA_CMD:
         case INS_GET_RESPONSE_CMD:
         case INS_GET_RKP_HARDWARE_INFO:
- //         rkp.process(apduIns, apdu);
+          rkp.process(apduIns, apdu);
           break;
         default:
           ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);

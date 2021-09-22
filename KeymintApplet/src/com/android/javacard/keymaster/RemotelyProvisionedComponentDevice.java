@@ -16,6 +16,32 @@
 package com.android.javacard.keymaster;
 
 import com.android.javacard.keymaster.*;
+import com.android.javacard.seprovider.KMAndroidSEProvider;
+import com.android.javacard.seprovider.KMArray;
+import com.android.javacard.seprovider.KMBoolTag;
+import com.android.javacard.seprovider.KMByteBlob;
+import com.android.javacard.seprovider.KMCose;
+import com.android.javacard.seprovider.KMCoseHeaders;
+import com.android.javacard.seprovider.KMCoseKey;
+import com.android.javacard.seprovider.KMDecoder;
+import com.android.javacard.seprovider.KMDeviceUniqueKey;
+import com.android.javacard.seprovider.KMEncoder;
+import com.android.javacard.seprovider.KMEnumArrayTag;
+import com.android.javacard.seprovider.KMEnumTag;
+import com.android.javacard.seprovider.KMError;
+import com.android.javacard.seprovider.KMException;
+import com.android.javacard.seprovider.KMInteger;
+import com.android.javacard.seprovider.KMIntegerTag;
+import com.android.javacard.seprovider.KMKeyParameters;
+import com.android.javacard.seprovider.KMMap;
+import com.android.javacard.seprovider.KMNInteger;
+import com.android.javacard.seprovider.KMOperation;
+import com.android.javacard.seprovider.KMRepository;
+import com.android.javacard.seprovider.KMSEProvider;
+import com.android.javacard.seprovider.KMSimpleValue;
+import com.android.javacard.seprovider.KMTextString;
+import com.android.javacard.seprovider.KMType;
+
 import javacard.framework.*;
 
 /*
@@ -145,19 +171,21 @@ public class RemotelyProvisionedComponentDevice {
       authorizedEekRoots =
           new Object[]
               {
-				/*
-				 * new byte[]{ 0x04, (byte)0xf7, (byte)0x14, (byte)0x8a, (byte)0xdb, (byte)0x97,
-				 * (byte)0xf4, (byte)0xcc, (byte)0x53, (byte)0xef, (byte)0xd2, (byte)0x64,
-				 * (byte)0x11, (byte)0xc4, (byte)0xe3, (byte)0x75, (byte)0x1f, (byte)0x66,
-				 * (byte)0x1f, (byte)0xa4, (byte)0x71, (byte)0x0c, (byte)0x6c, (byte)0xcf,
-				 * (byte)0xfa, (byte)0x09, (byte)0x46, (byte)0x80, (byte)0x74, (byte)0x87,
-				 * (byte)0x54, (byte)0xf2, (byte)0xad, (byte)0x5e, (byte)0x7f, (byte)0x5b,
-				 * (byte)0xf6, (byte)0xec, (byte)0xe4, (byte)0xf6, (byte)0x19, (byte)0xcc,
-				 * (byte)0xff, (byte)0x13, (byte)0x37, (byte)0xfd, (byte)0x0f, (byte)0xa1,
-				 * (byte)0xc8, (byte)0x93, (byte)0xdb, (byte)0x18, (byte)0x06, (byte)0x76,
-				 * (byte)0xc4, (byte)0x5d, (byte)0xe6, (byte)0xd7, (byte)0x6a, (byte)0x77,
-				 * (byte)0x86, (byte)0xc3, (byte)0x2d, (byte)0xaf, (byte)0x8f },
-				 */
+                  new byte[]{
+                      0x04,
+                      (byte)0xf7, (byte)0x14, (byte)0x8a, (byte)0xdb, (byte)0x97, (byte)0xf4,
+                      (byte)0xcc, (byte)0x53, (byte)0xef, (byte)0xd2, (byte)0x64, (byte)0x11,
+                      (byte)0xc4, (byte)0xe3, (byte)0x75, (byte)0x1f, (byte)0x66, (byte)0x1f,
+                      (byte)0xa4, (byte)0x71, (byte)0x0c, (byte)0x6c, (byte)0xcf, (byte)0xfa,
+                      (byte)0x09, (byte)0x46, (byte)0x80, (byte)0x74, (byte)0x87, (byte)0x54,
+                      (byte)0xf2, (byte)0xad,
+                      (byte)0x5e, (byte)0x7f, (byte)0x5b, (byte)0xf6, (byte)0xec, (byte)0xe4,
+                      (byte)0xf6, (byte)0x19, (byte)0xcc, (byte)0xff, (byte)0x13, (byte)0x37,
+                      (byte)0xfd, (byte)0x0f, (byte)0xa1, (byte)0xc8, (byte)0x93, (byte)0xdb,
+                      (byte)0x18, (byte)0x06, (byte)0x76, (byte)0xc4, (byte)0x5d, (byte)0xe6,
+                      (byte)0xd7, (byte)0x6a, (byte)0x77, (byte)0x86, (byte)0xc3, (byte)0x2d,
+                      (byte)0xaf, (byte)0x8f
+                  },
               };
     }
   }
@@ -210,14 +238,13 @@ public class RemotelyProvisionedComponentDevice {
   private void processGetRkpHwInfoCmd(APDU apdu) {
     // Make the response
     // Author name - Google.
-	/*
-	 * final byte[] google = {0x47, 0x6F, 0x6F, 0x67, 0x6C, 0x65}; short respPtr =
-	 * KMArray.instance((short) 3); KMArray resp = KMArray.cast(respPtr);
-	 * resp.add((short) 0, KMInteger.uint_16(RKP_VERSION)); resp.add((short) 1,
-	 * KMByteBlob.instance(google, (short) 0, (short) google.length));
-	 * resp.add((short) 2, KMInteger.uint_8(KMType.RKP_CURVE_P256));
-	 * KMKeymasterApplet.sendOutgoing(apdu, respPtr);
-	 */
+    final byte[] google = {0x47, 0x6F, 0x6F, 0x67, 0x6C, 0x65};
+    short respPtr = KMArray.instance((short) 3);
+    KMArray resp = KMArray.cast(respPtr);
+    resp.add((short) 0, KMInteger.uint_16(RKP_VERSION));
+    resp.add((short) 1, KMByteBlob.instance(google, (short) 0, (short) google.length));
+    resp.add((short) 2, KMInteger.uint_8(KMType.RKP_CURVE_P256));
+    KMKeymasterApplet.sendOutgoing(apdu, respPtr);
   }
 
   /**
@@ -225,76 +252,106 @@ public class RemotelyProvisionedComponentDevice {
    * blob. It then generates a COSEMac message which includes the ECDSA public key.
    */
   public void processGenerateRkpKey(APDU apdu) {
-		/*
-		 * short arr = KMArray.instance((short) 1); KMArray.cast(arr).add((short) 0,
-		 * KMSimpleValue.exp()); arr = KMKeymasterApplet.receiveIncoming(apdu, arr); //
-		 * Re-purpose the apdu buffer as scratch pad. byte[] scratchPad =
-		 * apdu.getBuffer(); // test mode flag. boolean testMode = (KMSimpleValue.TRUE
-		 * == KMSimpleValue.cast(KMArray.cast(arr).get((short) 0)).getValue());
-		 * KMKeymasterApplet.generateRkpKey(scratchPad, getEcAttestKeyParameters());
-		 * short pubKey = KMKeymasterApplet.getPubKey(); short coseMac0 =
-		 * constructCoseMacForRkpKey(testMode, scratchPad, pubKey); // Encode the
-		 * COSE_MAC0 object arr = KMArray.instance((short) 3);
-		 * KMArray.cast(arr).add((short) 0, KMInteger.uint_16(KMError.OK));
-		 * KMArray.cast(arr).add((short) 1, coseMac0); KMArray.cast(arr).add((short) 2,
-		 * KMKeymasterApplet.getPivateKey()); KMKeymasterApplet.sendOutgoing(apdu, arr);
-		 */
+    short arr = KMArray.instance((short) 1);
+    KMArray.cast(arr).add((short) 0, KMSimpleValue.exp());
+    arr = KMKeymasterApplet.receiveIncoming(apdu, arr);
+    // Re-purpose the apdu buffer as scratch pad.
+    byte[] scratchPad = apdu.getBuffer();
+    // test mode flag.
+    boolean testMode =
+        (KMSimpleValue.TRUE == KMSimpleValue.cast(KMArray.cast(arr).get((short) 0)).getValue());
+    KMKeymasterApplet.generateRkpKey(scratchPad, getEcAttestKeyParameters());
+    short pubKey = KMKeymasterApplet.getPubKey();
+    short coseMac0 = constructCoseMacForRkpKey(testMode, scratchPad, pubKey);
+    // Encode the COSE_MAC0 object
+    arr = KMArray.instance((short) 3);
+    KMArray.cast(arr).add((short) 0, KMInteger.uint_16(KMError.OK));
+    KMArray.cast(arr).add((short) 1, coseMac0);
+    KMArray.cast(arr).add((short) 2, KMKeymasterApplet.getPivateKey());
+    KMKeymasterApplet.sendOutgoing(apdu, arr);
   }
 
   public void processBeginSendData(APDU apdu) throws Exception {
-		/*
-		 * try { initializeDataTable(); short arr = KMArray.instance((short) 3);
-		 * KMArray.cast(arr).add((short) 0, KMInteger.exp()); // Array length
-		 * KMArray.cast(arr).add((short) 1, KMInteger.exp()); // Total length of the
-		 * encoded CoseKeys. KMArray.cast(arr).add((short) 2, KMSimpleValue.exp()); arr
-		 * = KMKeymasterApplet.receiveIncoming(apdu, arr); // Re-purpose the apdu buffer
-		 * as scratch pad. byte[] scratchPad = apdu.getBuffer(); // Generate ephemeral
-		 * mac key. short dataEntryIndex = createEntry(EPHEMERAL_MAC_KEY, MAC_KEY_SIZE);
-		 * seProvider.newRandomNumber(data, dataEntryIndex, MAC_KEY_SIZE); // Initialize
-		 * hmac operation. initHmacOperation(); // Partially encode CoseMac structure
-		 * with partial payload. constructPartialPubKeysToSignMac(scratchPad,
-		 * KMInteger.cast(KMArray.cast(arr).get((short) 0)).getShort(),
-		 * KMInteger.cast(KMArray.cast(arr).get((short) 1)).getShort()); // Store the
-		 * total keys in data table. dataEntryIndex = createEntry(TOTAL_KEYS_TO_SIGN,
-		 * SHORT_SIZE); Util.setShort(data, dataEntryIndex,
-		 * KMInteger.cast(KMArray.cast(arr).get((short) 0)).getShort()); // Store the
-		 * test mode value in data table. dataEntryIndex = createEntry(TEST_MODE,
-		 * TEST_MODE_SIZE); data[dataEntryIndex] = (KMSimpleValue.TRUE ==
-		 * KMSimpleValue.cast(KMArray.cast(arr).get((short) 2)).getValue()) ? TRUE :
-		 * FALSE; // Store the current csr status, which is BEGIN.
-		 * createEntry(GENERATE_CSR_PHASE, BYTE_SIZE); updateState(BEGIN); // Send
-		 * response. KMKeymasterApplet.sendError(apdu, KMError.OK); } catch (Exception
-		 * e) { clearDataTable(); releaseOperation(); throw e; }
-		 */
+    try {
+      initializeDataTable();
+      short arr = KMArray.instance((short) 3);
+      KMArray.cast(arr).add((short) 0, KMInteger.exp()); // Array length
+      KMArray.cast(arr).add((short) 1, KMInteger.exp()); // Total length of the encoded CoseKeys.
+      KMArray.cast(arr).add((short) 2, KMSimpleValue.exp());
+      arr = KMKeymasterApplet.receiveIncoming(apdu, arr);
+      // Re-purpose the apdu buffer as scratch pad.
+      byte[] scratchPad = apdu.getBuffer();
+      // Generate ephemeral mac key.
+      short dataEntryIndex = createEntry(EPHEMERAL_MAC_KEY, MAC_KEY_SIZE);
+      seProvider.newRandomNumber(data, dataEntryIndex, MAC_KEY_SIZE);
+      // Initialize hmac operation.
+      initHmacOperation();
+      // Partially encode CoseMac structure with partial payload.
+      constructPartialPubKeysToSignMac(scratchPad,
+          KMInteger.cast(KMArray.cast(arr).get((short) 0)).getShort(),
+          KMInteger.cast(KMArray.cast(arr).get((short) 1)).getShort());
+      // Store the total keys in data table.
+      dataEntryIndex = createEntry(TOTAL_KEYS_TO_SIGN, SHORT_SIZE);
+      Util.setShort(data, dataEntryIndex,
+          KMInteger.cast(KMArray.cast(arr).get((short) 0)).getShort());
+      // Store the test mode value in data table.
+      dataEntryIndex = createEntry(TEST_MODE, TEST_MODE_SIZE);
+      data[dataEntryIndex] =
+          (KMSimpleValue.TRUE == KMSimpleValue.cast(KMArray.cast(arr).get((short) 2)).getValue()) ?
+              TRUE : FALSE;
+      // Store the current csr status, which is BEGIN.
+      createEntry(GENERATE_CSR_PHASE, BYTE_SIZE);
+      updateState(BEGIN);
+      // Send response.
+      KMKeymasterApplet.sendError(apdu, KMError.OK);
+    } catch (Exception e) {
+      clearDataTable();
+      releaseOperation();
+      throw e;
+    }
   }
 
   public void processUpdateKey(APDU apdu) throws Exception {
-		/*
-		 * try { // The prior state can be BEGIN or UPDATE validateState((byte) (BEGIN |
-		 * UPDATE)); validateKeysToSignCount(); short headers = KMCoseHeaders.exp();
-		 * short arrInst = KMArray.instance((short) 4);
-		 * KMArray.cast(arrInst).add((short) 0, KMByteBlob.exp());
-		 * KMArray.cast(arrInst).add((short) 1, headers);
-		 * KMArray.cast(arrInst).add((short) 2, KMByteBlob.exp());
-		 * KMArray.cast(arrInst).add((short) 3, KMByteBlob.exp()); short arr =
-		 * KMArray.exp(arrInst); arr = KMKeymasterApplet.receiveIncoming(apdu, arr);
-		 * arrInst = KMArray.cast(arr).get((short) 0); // Re-purpose the apdu buffer as
-		 * scratch pad. byte[] scratchPad = apdu.getBuffer();
-		 * 
-		 * // Validate and extract the CoseKey from CoseMac0 message. short coseKey =
-		 * validateAndExtractPublicKey(arrInst, scratchPad); // Encode CoseKey short
-		 * length = KMKeymasterApplet.encodeToApduBuffer(coseKey, scratchPad, (short) 0,
-		 * KMKeymasterApplet.MAX_COSE_BUF_SIZE); // Do Hmac update with input as encoded
-		 * CoseKey. ((KMOperation) operation[0]).update(scratchPad, (short) 0, length);
-		 * // Increment the count each time this function gets executed. // Store the
-		 * count in data table. short dataEntryIndex = getEntry(KEYS_TO_SIGN_COUNT); if
-		 * (dataEntryIndex == 0) { dataEntryIndex = createEntry(KEYS_TO_SIGN_COUNT,
-		 * SHORT_SIZE); } length = Util.getShort(data, dataEntryIndex);
-		 * Util.setShort(data, dataEntryIndex, ++length); // Update the csr state
-		 * updateState(UPDATE); // Send response. KMKeymasterApplet.sendError(apdu,
-		 * KMError.OK); } catch (Exception e) { clearDataTable(); releaseOperation();
-		 * throw e; }
-		 */
+    try {
+      // The prior state can be BEGIN or UPDATE
+      validateState((byte) (BEGIN | UPDATE));
+      validateKeysToSignCount();
+      short headers = KMCoseHeaders.exp();
+      short arrInst = KMArray.instance((short) 4);
+      KMArray.cast(arrInst).add((short) 0, KMByteBlob.exp());
+      KMArray.cast(arrInst).add((short) 1, headers);
+      KMArray.cast(arrInst).add((short) 2, KMByteBlob.exp());
+      KMArray.cast(arrInst).add((short) 3, KMByteBlob.exp());
+      short arr = KMArray.exp(arrInst);
+      arr = KMKeymasterApplet.receiveIncoming(apdu, arr);
+      arrInst = KMArray.cast(arr).get((short) 0);
+      // Re-purpose the apdu buffer as scratch pad.
+      byte[] scratchPad = apdu.getBuffer();
+
+      // Validate and extract the CoseKey from CoseMac0 message.
+      short coseKey = validateAndExtractPublicKey(arrInst, scratchPad);
+      // Encode CoseKey
+      short length = KMKeymasterApplet.encodeToApduBuffer(coseKey, scratchPad, (short) 0,
+          KMKeymasterApplet.MAX_COSE_BUF_SIZE);
+      // Do Hmac update with input as encoded CoseKey.
+      ((KMOperation) operation[0]).update(scratchPad, (short) 0, length);
+      // Increment the count each time this function gets executed.
+      // Store the count in data table.
+      short dataEntryIndex = getEntry(KEYS_TO_SIGN_COUNT);
+      if (dataEntryIndex == 0) {
+        dataEntryIndex = createEntry(KEYS_TO_SIGN_COUNT, SHORT_SIZE);
+      }
+      length = Util.getShort(data, dataEntryIndex);
+      Util.setShort(data, dataEntryIndex, ++length);
+      // Update the csr state
+      updateState(UPDATE);
+      // Send response.
+      KMKeymasterApplet.sendError(apdu, KMError.OK);
+    } catch (Exception e) {
+      clearDataTable();
+      releaseOperation();
+      throw e;
+    }
   }
 
   public void processUpdateEekChain(APDU apdu) throws Exception {
@@ -465,8 +522,7 @@ public class RemotelyProvisionedComponentDevice {
     }
   }
 
-  public void process(short ins, APDU apdu) {
-	try {  
+  public void process(short ins, APDU apdu) throws Exception  {
     switch (ins) {
       case KMKeymasterApplet.INS_GET_RKP_HARDWARE_INFO:
         processGetRkpHwInfoCmd(apdu);
@@ -494,10 +550,7 @@ public class RemotelyProvisionedComponentDevice {
         break;
       default:
         ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
-      }
-	}catch(Exception e) {
-		
-	}
+    }
   }
 
   private boolean isAdditionalCertificateChainPresent() {
@@ -1193,7 +1246,7 @@ public class RemotelyProvisionedComponentDevice {
     boolean testMode = (TRUE == data[getEntry(TEST_MODE)]) ? true : false;
     short len;
     if (testMode) {
-      short bcc = seProvider.generateBcc(true, scratchPad);
+      short bcc = KMAndroidSEApplet.generateBcc(true, scratchPad);
       len = KMKeymasterApplet
           .encodeToApduBuffer(bcc, scratchPad, (short) 0, KMKeymasterApplet.MAX_COSE_BUF_SIZE);
     } else {
