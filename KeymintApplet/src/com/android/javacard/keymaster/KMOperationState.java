@@ -16,9 +16,7 @@
 
 package com.android.javacard.keymaster;
 
-import com.android.javacard.seprovider.KMInteger;
 import com.android.javacard.seprovider.KMOperation;
-import com.android.javacard.seprovider.KMType;
 
 import javacard.framework.JCSystem;
 import javacard.framework.Util;

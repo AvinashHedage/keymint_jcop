@@ -15,7 +15,6 @@
  */
 package com.android.javacard.seprovider;
 
-
 /**
  * The KMAttestationCert interface represents a X509 compliant attestation certificate required to
  * support keymaster's attestKey function. This cert will be created according to the specifications

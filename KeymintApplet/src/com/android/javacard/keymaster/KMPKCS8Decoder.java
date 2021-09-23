@@ -1,10 +1,6 @@
 package com.android.javacard.keymaster;
 
-import com.android.javacard.seprovider.KMArray;
-import com.android.javacard.seprovider.KMByteBlob;
-import com.android.javacard.seprovider.KMError;
 import com.android.javacard.seprovider.KMException;
-import com.android.javacard.seprovider.KMType;
 
 import javacard.framework.Util;
 

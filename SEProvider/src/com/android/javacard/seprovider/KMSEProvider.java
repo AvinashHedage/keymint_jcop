@@ -15,7 +15,6 @@
  */
 package com.android.javacard.seprovider;
 
-
 /**
  * KMSEProvider is facade to use SE specific methods. The main intention of this interface is to
  * abstract the cipher, signature and backup and restore related functions. The instance of this
@@ -558,7 +557,7 @@ public interface KMSEProvider extends KMUpgradable {
    * is for ec public key.
    * @return An empty instance of KMAttestationCert implementation.
    */
-  KMAttestationCert getAttestationCert(boolean rsaCert);
+  //KMAttestationCert getAttestationCert(boolean rsaCert);
 
   /**
    * This function tells if applet is upgrading or not.
@@ -690,14 +689,6 @@ public interface KMSEProvider extends KMUpgradable {
    */
   byte[] getAdditionalCertChain();
 
-  /**
-   * Generate boot certificate chain.
-   *
-   * @param testMode to indicate if current execution is for test or production.
-   * @param scratchPad buffer to store temporary results.
-   * @return instance of the boot certificate chin.
-   */
-  //short generateBcc(boolean testMode, byte[] scratchPad);
 
   /**
    * Returns the boot certificate chain.

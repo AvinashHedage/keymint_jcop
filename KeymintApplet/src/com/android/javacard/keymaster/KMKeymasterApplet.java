@@ -16,33 +16,9 @@
 
 package com.android.javacard.keymaster;
 
-import com.android.javacard.seprovider.KMArray;
 import com.android.javacard.seprovider.KMAttestationCert;
-import com.android.javacard.seprovider.KMBignumTag;
-import com.android.javacard.seprovider.KMByteBlob;
-import com.android.javacard.seprovider.KMByteTag;
-import com.android.javacard.seprovider.KMCose;
-import com.android.javacard.seprovider.KMCoseHeaders;
-import com.android.javacard.seprovider.KMCoseKey;
-import com.android.javacard.seprovider.KMDecoder;
-import com.android.javacard.seprovider.KMEncoder;
-import com.android.javacard.seprovider.KMEnum;
-import com.android.javacard.seprovider.KMEnumArrayTag;
-import com.android.javacard.seprovider.KMEnumTag;
-import com.android.javacard.seprovider.KMError;
 import com.android.javacard.seprovider.KMException;
-import com.android.javacard.seprovider.KMHardwareAuthToken;
-import com.android.javacard.seprovider.KMHmacSharingParameters;
-import com.android.javacard.seprovider.KMInteger;
-import com.android.javacard.seprovider.KMIntegerArrayTag;
-import com.android.javacard.seprovider.KMIntegerTag;
-import com.android.javacard.seprovider.KMKeyCharacteristics;
-import com.android.javacard.seprovider.KMKeyParameters;
-import com.android.javacard.seprovider.KMRepository;
 import com.android.javacard.seprovider.KMSEProvider;
-import com.android.javacard.seprovider.KMTag;
-import com.android.javacard.seprovider.KMType;
-import com.android.javacard.seprovider.KMVerificationToken;
 
 import javacard.framework.APDU;
 import javacard.framework.Applet;
@@ -333,10 +309,6 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   @Override
   public void deselect() {
     repository.onDeselect();
-  }
-  
-  public static void install(byte[] bArray, short bOffset, byte bLength) {
-	   /// new KMAndroidSEApplet().register(bArray, (short) (bOffset + 1), bArray[bOffset]);
   }
 
   /**
@@ -1223,7 +1195,8 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   private KMAttestationCert makeCommonCert(byte[] scratchPad) {
     short alg = KMKeyParameters.findTag(KMType.ENUM_TAG, KMType.ALGORITHM, data[KEY_PARAMETERS]);
     boolean rsaCert = KMEnumTag.cast(alg).getValue() == KMType.RSA;
-    KMAttestationCert cert = seProvider.getAttestationCert(rsaCert);
+    //KMAttestationCert cert = seProvider.getAttestationCert(rsaCert);
+    KMAttestationCert cert = KMAttestationCertImpl.instance(rsaCert, seProvider);
 
     short subject = KMKeyParameters.findTag(KMType.BYTES_TAG, KMType.CERTIFICATE_SUBJECT_NAME, data[KEY_PARAMETERS]);
 

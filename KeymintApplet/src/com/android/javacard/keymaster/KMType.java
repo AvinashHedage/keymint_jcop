@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.javacard.seprovider;
+package com.android.javacard.keymaster;
 
 import javacard.framework.ISO7816;
 import javacard.framework.ISOException;
@@ -350,5 +350,46 @@ public abstract class KMType {
   public static final byte BUF_RSA_NO_DIGEST = 1;
   public static final byte BUF_EC_NO_DIGEST = 2;
   public static final byte BUF_BLOCK_ALIGN = 3;
+
+  protected static KMRepository repository;
+  protected static byte[] heap;
+  // Instance table
+  public static final byte INSTANCE_TABLE_SIZE = 29;
+  protected static short[] instanceTable;
+
+  public static void initialize() {
+    instanceTable = JCSystem.makeTransientShortArray(INSTANCE_TABLE_SIZE, JCSystem.CLEAR_ON_RESET);
+    KMType.repository = KMRepository.instance();
+    KMType.heap = repository.getHeap();
+  }
+
+  public static byte getType(short ptr) {
+    return heap[ptr];
+  }
+
+  public static short length(short ptr) {
+    return Util.getShort(heap, (short) (ptr + 1));
+  }
+
+  public static short getValue(short ptr) {
+    return Util.getShort(heap, (short) (ptr + TLV_HEADER_SIZE));
+  }
+
+  protected static short instance(byte type, short length) {
+    if (length < 0) {
+      ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+    }
+    short ptr = repository.alloc((short) (length + TLV_HEADER_SIZE));
+    heap[ptr] = type;
+    Util.setShort(heap, (short) (ptr + 1), length);
+    return ptr;
+  }
+
+  protected static short exp(byte type) {
+    short ptr = repository.alloc(TLV_HEADER_SIZE);
+    heap[ptr] = type;
+    Util.setShort(heap, (short) (ptr + 1), INVALID_VALUE);
+    return ptr;
+  }
 
 }

@@ -15,6 +15,10 @@
  */
 package com.android.javacard.seprovider;
 
+import com.android.javacard.seprovider.KMError;
+import com.android.javacard.seprovider.KMException;
+import com.android.javacard.seprovider.KMType;
+
 import javacard.framework.JCSystem;
 import javacard.framework.Util;
 import javacard.security.KeyAgreement;
@@ -32,13 +36,15 @@ public class KMOperationImpl implements KMOperation {
   //This will hold the length of the buffer stored inside the
   //Java Card after the GCM update operation.
   private static final short AES_GCM_UPDATE_LEN_OFFSET = 0x05;
+  private static final short PARAMETERS_LENGTH = 6;
   private short[] parameters;
   // Either one of Cipher/Signature instance is stored.
   private Object[] operationInst;
 
   public KMOperationImpl() {
-    parameters = JCSystem.makeTransientShortArray((short) 6, JCSystem.CLEAR_ON_RESET);
+    parameters = JCSystem.makeTransientShortArray(PARAMETERS_LENGTH, JCSystem.CLEAR_ON_RESET);
     operationInst = JCSystem.makeTransientObjectArray((short) 1, JCSystem.CLEAR_ON_RESET);
+    reset();
   }
 
   public short getMode() {
@@ -89,11 +95,11 @@ public class KMOperationImpl implements KMOperation {
     operationInst[0] = signer;
   }
 
-  public void setKeyAgreement(KeyAgreement keyAgreemen) {
-	    operationInst[0] = keyAgreemen;
+  public void setKeyAgreement(KeyAgreement keyAgreement) {
+    operationInst[0] = keyAgreement;
   }
-  
-  private void resetCipher() {
+
+  private void reset() {
     operationInst[0] = null;
     parameters[MAC_LENGTH_OFFSET] = 0;
     parameters[AES_GCM_UPDATE_LEN_OFFSET] = 0;
@@ -105,10 +111,11 @@ public class KMOperationImpl implements KMOperation {
 
   @Override
   public short update(byte[] inputDataBuf, short inputDataStart,
-                      short inputDataLength, byte[] outputDataBuf, short outputDataStart) {
+      short inputDataLength, byte[] outputDataBuf, short outputDataStart) {
     short len = ((Cipher) operationInst[0]).update(inputDataBuf, inputDataStart, inputDataLength,
-      outputDataBuf, outputDataStart);
-    if (parameters[CIPHER_ALG_OFFSET] == KMType.AES && parameters[BLOCK_MODE_OFFSET] == KMType.GCM) {
+        outputDataBuf, outputDataStart);
+    if (parameters[CIPHER_ALG_OFFSET] == KMType.AES
+        && parameters[BLOCK_MODE_OFFSET] == KMType.GCM) {
       // Every time Block size data is stored as intermediate result.
       parameters[AES_GCM_UPDATE_LEN_OFFSET] += (short) (inputDataLength - len);
     }
@@ -117,14 +124,14 @@ public class KMOperationImpl implements KMOperation {
 
   @Override
   public short update(byte[] inputDataBuf, short inputDataStart,
-                      short inputDataLength) {
+      short inputDataLength) {
     ((Signature) operationInst[0]).update(inputDataBuf, inputDataStart, inputDataLength);
     return 0;
   }
 
   @Override
   public short finish(byte[] inputDataBuf, short inputDataStart,
-                      short inputDataLen, byte[] outputDataBuf, short outputDataStart) {
+      short inputDataLen, byte[] outputDataBuf, short outputDataStart) {
     byte[] tmpArray = KMAndroidSEProvider.getInstance().tmpArray;
     Cipher cipher = (Cipher) operationInst[0];
     short cipherAlg = parameters[CIPHER_ALG_OFFSET];
@@ -139,7 +146,7 @@ public class KMOperationImpl implements KMOperation {
           inputDataLen = (short) (inputDataLen - macLength);
         }
       } else if ((cipherAlg == KMType.DES || cipherAlg == KMType.AES) &&
-        padding == KMType.PKCS7 && mode == KMType.ENCRYPT) {
+          padding == KMType.PKCS7 && mode == KMType.ENCRYPT) {
         byte blkSize = 16;
         byte paddingBytes;
         short inputlen = inputDataLen;
@@ -159,15 +166,15 @@ public class KMOperationImpl implements KMOperation {
         Util.arrayFillNonAtomic(tmpArray, (short) 0, inputlen, paddingBytes);
         // copy the input data
         Util.arrayCopyNonAtomic(inputDataBuf, inputDataStart, tmpArray,
-          (short) 0, inputDataLen);
+            (short) 0, inputDataLen);
         inputDataBuf = tmpArray;
         inputDataLen = inputlen;
         inputDataStart = 0;
       }
       len = cipher.doFinal(inputDataBuf, inputDataStart, inputDataLen,
-        outputDataBuf, outputDataStart);
+          outputDataBuf, outputDataStart);
       if ((cipherAlg == KMType.AES || cipherAlg == KMType.DES) &&
-        padding == KMType.PKCS7 && mode == KMType.DECRYPT) {
+          padding == KMType.PKCS7 && mode == KMType.DECRYPT) {
         byte blkSize = 16;
         if (cipherAlg == KMType.DES) {
           blkSize = 8;
@@ -190,48 +197,48 @@ public class KMOperationImpl implements KMOperation {
       } else if (cipherAlg == KMType.AES && blockMode == KMType.GCM) {
         if (mode == KMType.ENCRYPT) {
           len += ((AEADCipher) cipher).retrieveTag(outputDataBuf,
-            (short) (outputDataStart + len), macLength);
+              (short) (outputDataStart + len), macLength);
         } else {
           boolean verified = ((AEADCipher) cipher).verifyTag(inputDataBuf,
-            (short) (inputDataStart + inputDataLen), macLength, macLength);
+              (short) (inputDataStart + inputDataLen), macLength, macLength);
           if (!verified) {
             KMException.throwIt(KMError.VERIFICATION_FAILED);
           }
         }
       }
-      
+
     } finally {
       KMAndroidSEProvider.getInstance().clean();
       KMAndroidSEProvider.getInstance().releaseCipherInstance(cipher);
-      resetCipher();
+      reset();
     }
     return len;
   }
 
   @Override
   public short sign(byte[] inputDataBuf, short inputDataStart,
-                    short inputDataLength, byte[] signBuf, short signStart) {
+      short inputDataLength, byte[] signBuf, short signStart) {
     short len = 0;
     try {
       len = ((Signature) operationInst[0]).sign(inputDataBuf, inputDataStart, inputDataLength,
-        signBuf, signStart);
+          signBuf, signStart);
     } finally {
       KMAndroidSEProvider.getInstance().releaseSignatureInstance((Signature) operationInst[0]);
-      operationInst[0] = null;
+      reset();
     }
     return len;
   }
 
   @Override
   public boolean verify(byte[] inputDataBuf, short inputDataStart,
-                        short inputDataLength, byte[] signBuf, short signStart, short signLength) {
+      short inputDataLength, byte[] signBuf, short signStart, short signLength) {
     boolean ret = false;
     try {
       ret = ((Signature) operationInst[0]).verify(inputDataBuf, inputDataStart, inputDataLength,
-        signBuf, signStart, signLength);
+          signBuf, signStart, signLength);
     } finally {
       KMAndroidSEProvider.getInstance().releaseSignatureInstance((Signature) operationInst[0]);
-      operationInst[0] = null;
+      reset();
     }
     return ret;
   }
@@ -240,13 +247,12 @@ public class KMOperationImpl implements KMOperation {
   public void abort() {
     if (operationInst[0] != null) {
       if (parameters[OPER_MODE_OFFSET] == KMType.ENCRYPT ||
-        parameters[OPER_MODE_OFFSET] == KMType.DECRYPT) {
+          parameters[OPER_MODE_OFFSET] == KMType.DECRYPT) {
         KMAndroidSEProvider.getInstance().releaseCipherInstance((Cipher) operationInst[0]);
-        resetCipher();
       } else {
         KMAndroidSEProvider.getInstance().releaseSignatureInstance((Signature) operationInst[0]);
       }
-      operationInst[0] = null;
+      reset();
     }
     KMAndroidSEProvider.getInstance().releaseOperationInstance(this);
   }
