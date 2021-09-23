@@ -195,7 +195,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
   private static final short HMAC_SHARED_PARAM_MAX_SIZE = 64;
   protected static final short MAX_CERT_SIZE = 2048;
 
- // protected static RemotelyProvisionedComponentDevice rkp;
+  protected static RemotelyProvisionedComponentDevice rkp;
   protected static KMEncoder encoder;
   protected static KMDecoder decoder;
   protected static KMRepository repository;
@@ -234,7 +234,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
     // initialize default values
     initHmacNonceAndSeed();
     initSystemBootParams((short)0,(short)0,(short)0,(short)0);
-   // rkp = new RemotelyProvisionedComponentDevice(encoder, decoder, repository, seProvider);
+    rkp = new RemotelyProvisionedComponentDevice(encoder, decoder, repository, seProvider);
   }
 
   protected void initHmacNonceAndSeed(){
@@ -476,7 +476,7 @@ public class KMKeymasterApplet extends Applet implements AppletEvent, ExtendedLe
         case INS_FINISH_SEND_DATA_CMD:
         case INS_GET_RESPONSE_CMD:
         case INS_GET_RKP_HARDWARE_INFO:
- //         rkp.process(apduIns, apdu);
+          rkp.process(apduIns, apdu);
           break;
         default:
           ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);

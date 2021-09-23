@@ -152,10 +152,7 @@ public class KMAndroidSEApplet extends KMKeymasterApplet implements OnUpgradeLis
 	        super.process(apdu);
 	        break;
 	    }
-	}catch(Exception e) {
-		
-	}
-	finally {
+	} finally {
 		repository.clean();
 	}
   }

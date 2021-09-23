@@ -108,7 +108,7 @@ public class KMAndroidSEProvider implements KMSEProvider {
   public static final short TMP_ARRAY_SIZE = 256;
   private static final short RSA_KEY_SIZE = 256;
   public static final short CERT_CHAIN_MAX_SIZE = 2500;//First 2 bytes for length.
-  private static final short ADDITIONAL_CERT_CHAIN_MAX_SIZE = 500;//First 2 bytes for length.
+  private static final short ADDITIONAL_CERT_CHAIN_MAX_SIZE = 512;//First 2 bytes for length.
   private static final short BCC_MAX_SIZE = 512;
   public static final short SHARED_SECRET_KEY_SIZE = 32;
   public static final byte POWER_RESET_FALSE = (byte)0xAA;
@@ -1017,6 +1017,7 @@ public class KMAndroidSEProvider implements KMSEProvider {
             keyBuf, keyStart, keyLength);
         opr = getOperationInstanceFromPool();
         opr.setSignature(signerVerifier);
+        opr.setMode(purpose);
         break;
       default:
         CryptoException.throwIt(CryptoException.NO_SUCH_ALGORITHM);
@@ -1104,6 +1105,7 @@ public KMOperation initAsymmetricOperation(byte purpose, byte alg,
               privKeyLength);
           opr = getOperationInstanceFromPool();
           opr.setSignature(signer);
+          opr.setMode(purpose);
           break;
           
         case KMType.AGREE_KEY:
@@ -1111,6 +1113,7 @@ public KMOperation initAsymmetricOperation(byte purpose, byte alg,
                 createKeyAgreement(privKeyBuf, privKeyStart, privKeyLength);
             opr = getOperationInstanceFromPool();
             opr.setKeyAgreement(keyAgreement);
+            opr.setMode(purpose);
             break;
         default:
           KMException.throwIt(KMError.UNSUPPORTED_PURPOSE);
@@ -1787,6 +1790,8 @@ public void persistAdditionalCertChain(byte[] buf, short offset, short len) {
   //            // self-signed cert, leaf contains DK_pu b
   //    ]
   //    Certificate = COSE_Sign1 of a public key
+  if ((short) (len + 2) >= ADDITIONAL_CERT_CHAIN_MAX_SIZE)
+	  KMException.throwIt(KMError.INVALID_INPUT_LENGTH);
   JCSystem.beginTransaction();
   Util.setShort(additionalCertChain, (short) 0, (short) len);
   Util.arrayCopyNonAtomic(buf, offset, additionalCertChain,
@@ -1921,7 +1926,9 @@ public void persistBootCertificateChain(byte[] buf, short offset, short len) {
   }
 
 public void setProvisionLocked(boolean locked) {
+	JCSystem.beginTransaction();
     isProvisionLocked = locked;
+    JCSystem.commitTransaction();
   }
 
 public boolean isProvisionLocked() {

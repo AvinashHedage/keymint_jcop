@@ -32,13 +32,15 @@ public class KMOperationImpl implements KMOperation {
   //This will hold the length of the buffer stored inside the
   //Java Card after the GCM update operation.
   private static final short AES_GCM_UPDATE_LEN_OFFSET = 0x05;
+  private static final short PARAMETERS_LENGTH = 6;
   private short[] parameters;
   // Either one of Cipher/Signature instance is stored.
   private Object[] operationInst;
 
   public KMOperationImpl() {
-    parameters = JCSystem.makeTransientShortArray((short) 6, JCSystem.CLEAR_ON_RESET);
+    parameters = JCSystem.makeTransientShortArray(PARAMETERS_LENGTH, JCSystem.CLEAR_ON_RESET);
     operationInst = JCSystem.makeTransientObjectArray((short) 1, JCSystem.CLEAR_ON_RESET);
+    reset();
   }
 
   public short getMode() {
@@ -89,11 +91,11 @@ public class KMOperationImpl implements KMOperation {
     operationInst[0] = signer;
   }
 
-  public void setKeyAgreement(KeyAgreement keyAgreemen) {
-	    operationInst[0] = keyAgreemen;
+  public void setKeyAgreement(KeyAgreement keyAgreement) {
+	    operationInst[0] = keyAgreement;
   }
   
-  private void resetCipher() {
+  private void reset() {
     operationInst[0] = null;
     parameters[MAC_LENGTH_OFFSET] = 0;
     parameters[AES_GCM_UPDATE_LEN_OFFSET] = 0;
@@ -206,7 +208,7 @@ public class KMOperationImpl implements KMOperation {
     } finally {
       KMAndroidSEProvider.getInstance().clean();
       KMAndroidSEProvider.getInstance().releaseCipherInstance(cipher);
-      resetCipher();
+      reset();
     }
     return len;
   }
@@ -220,7 +222,7 @@ public class KMOperationImpl implements KMOperation {
         signBuf, signStart);
     } finally {
       KMAndroidSEProvider.getInstance().releaseSignatureInstance((Signature) operationInst[0]);
-      operationInst[0] = null;
+      reset();
     }
     return len;
   }
@@ -234,7 +236,7 @@ public class KMOperationImpl implements KMOperation {
         signBuf, signStart, signLength);
     } finally {
       KMAndroidSEProvider.getInstance().releaseSignatureInstance((Signature) operationInst[0]);
-      operationInst[0] = null;
+      reset();
     }
     return ret;
   }
@@ -242,14 +244,13 @@ public class KMOperationImpl implements KMOperation {
   @Override
   public void abort() {
     if (operationInst[0] != null) {
-      if (parameters[OPER_MODE_OFFSET] == KMType.ENCRYPT ||
-        parameters[OPER_MODE_OFFSET] == KMType.DECRYPT) {
+      if (parameters[OPER_MODE_OFFSET] == (short) KMType.ENCRYPT ||
+        parameters[OPER_MODE_OFFSET] == (short) KMType.DECRYPT) {
         KMAndroidSEProvider.getInstance().releaseCipherInstance((Cipher) operationInst[0]);
-        resetCipher();
       } else {
         KMAndroidSEProvider.getInstance().releaseSignatureInstance((Signature) operationInst[0]);
       }
-      operationInst[0] = null;
+      reset();
     }
     KMAndroidSEProvider.getInstance().releaseOperationInstance(this);
   }
