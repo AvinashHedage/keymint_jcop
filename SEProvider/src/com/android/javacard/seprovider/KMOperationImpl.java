@@ -198,9 +198,6 @@ public class KMOperationImpl implements KMOperation {
             KMException.throwIt(KMError.VERIFICATION_FAILED);
           }
         }
-      }else if (operationInst[0] != null) {
-    	     return ((KeyAgreement)operationInst[0]).generateSecret(inputDataBuf, inputDataStart, inputDataLen,
-    	             outputDataBuf, outputDataStart);
       }
       
     } finally {
