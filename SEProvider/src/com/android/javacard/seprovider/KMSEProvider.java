@@ -696,6 +696,8 @@ public interface KMSEProvider extends KMUpgradable {
    * @return boot certificate chain.
    */
   byte[] getBootCertificateChain();
+  
+  public boolean isProvisionLocked();
 
 
 }
